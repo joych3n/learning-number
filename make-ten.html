@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>凑十法</title>
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .equation {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 2px 0 6px;
+        font-size: 2.4rem;
+        font-weight: bold;
+        color: #1e293b;
+      }
+
+      .answer-box {
+        min-width: 64px;
+        height: 56px;
+        padding: 0 6px;
+        box-sizing: border-box;
+        border: 3px solid var(--main-color);
+        border-radius: 10px;
+        background-color: white;
+        color: var(--main-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .answer-box.empty {
+        color: #cbd5e1;
+      }
+
+      .answer-box.right {
+        border-color: var(--success-color);
+        color: var(--success-color);
+      }
+
+      .answer-box.shake {
+        animation: shake 0.4s;
+      }
+
+      @keyframes shake {
+        20%,
+        60% {
+          transform: translateX(-6px);
+        }
+        40%,
+        80% {
+          transform: translateX(6px);
+        }
+      }
+
+      .prompt {
+        min-height: 1.5em;
+        margin-bottom: 8px;
+        padding: 0 16px;
+        font-size: 1.05rem;
+        color: #b45309;
+        text-align: center;
+      }
+
+      /* 十格框、分解式、分步算式所在区域；庆祝遮罩盖住这里 */
+      .play-area {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 8px;
+      }
+
+      .frames {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .frame {
+        --cell: 40px;
+        display: grid;
+        grid-template-columns: repeat(5, var(--cell));
+        grid-template-rows: repeat(2, var(--cell));
+        border: 3px solid #94a3b8;
+        border-radius: 8px;
+        background-color: white;
+        overflow: hidden;
+        transition: border-color 0.3s, box-shadow 0.3s;
+      }
+
+      /* 凑满十 */
+      .frame.full {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.35);
+      }
+
+      .cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-right: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+      }
+
+      .cell:nth-child(5n) {
+        border-right: none;
+      }
+
+      .cell:nth-child(n + 6) {
+        border-bottom: none;
+      }
+
+      .dot {
+        width: 74%;
+        height: 74%;
+        border-radius: 50%;
+        box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+        transition: background-color 0.25s, transform 0.25s, opacity 0.25s;
+      }
+
+      .dot.red {
+        background-color: #ef4444;
+      }
+
+      .dot.blue {
+        background-color: #3b82f6;
+      }
+
+      .dot.placeholder {
+        visibility: hidden;
+      }
+
+      .dot.pop {
+        animation: dotPop 0.3s;
+      }
+
+      @keyframes dotPop {
+        50% {
+          transform: scale(1.25);
+        }
+      }
+
+      /* 破十法里被拿走的点：只留一个虚线圈 */
+      .dot.taken {
+        background-color: transparent;
+        box-shadow: none;
+        border: 2px dashed #cbd5e1;
+        box-sizing: border-box;
+        transform: scale(0.8);
+      }
+
+      .work {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        min-height: 80px;
+      }
+
+      .split {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #1e293b;
+      }
+
+      .split svg {
+        display: block;
+      }
+
+      .split path {
+        stroke: #64748b;
+        stroke-width: 2;
+        fill: none;
+      }
+
+      .split-branches {
+        display: flex;
+        gap: 30px;
+      }
+
+      .steps {
+        font-size: 1.3rem;
+        font-weight: bold;
+        line-height: 1.7;
+        color: #334155;
+      }
+
+      /* 口算关：不显示十格框，只提示心算 */
+      .mental {
+        display: none;
+        padding: 30px 0;
+        font-size: 1.2rem;
+        color: #64748b;
+      }
+
+      .play-area.no-frames .frames,
+      .play-area.no-frames .work {
+        display: none;
+      }
+
+      .play-area.no-frames .mental {
+        display: block;
+      }
+
+      .keypad {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        width: 100%;
+        max-width: 360px;
+        margin-top: 12px;
+        padding: 0 16px;
+        box-sizing: border-box;
+      }
+
+      .key {
+        height: 50px;
+        border: none;
+        border-radius: 10px;
+        background-color: white;
+        color: #1e293b;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+        cursor: pointer;
+      }
+
+      .key:active {
+        transform: scale(0.95);
+        background-color: #e0ecff;
+      }
+
+      .key.wide {
+        grid-column: span 2;
+      }
+
+      .key.ok {
+        grid-column: span 3;
+        background-color: var(--main-color);
+        color: white;
+      }
+
+      /* 引导步骤没做完之前键盘不能用 */
+      .keypad.locked .key {
+        opacity: 0.35;
+        pointer-events: none;
+      }
+
+      @media (min-width: 480px) {
+        .equation {
+          font-size: 2.8rem;
+        }
+        .frame {
+          --cell: 48px;
+        }
+        .key {
+          height: 56px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="page-header">
+      <a class="back-link" href="index.html">← 返回</a>
+      <h1 class="title">凑十法</h1>
+    </header>
+    <div class="level-panel" id="levelPanel">
+      <div class="level-map" id="levelMap"></div>
+      <div class="level-info">
+        <span id="levelName"></span>
+        <span id="levelStars"></span>
+      </div>
+    </div>
+
+    <div class="equation" id="equation"></div>
+    <div class="prompt" id="prompt"></div>
+
+    <div class="play-area" id="playArea">
+      <div class="frames" id="frames">
+        <div class="frame" id="frameA"></div>
+        <div class="frame" id="frameB"></div>
+      </div>
+      <div class="work">
+        <div class="split" id="split"></div>
+        <div class="steps" id="steps"></div>
+      </div>
+      <div class="mental">🧠 心里想一想，再按出答案</div>
+      <div class="mascot-overlay" id="mascotOverlay">
+        <div class="mascot" id="mascot">👏</div>
+      </div>
+    </div>
+
+    <div class="keypad" id="keypad">
+      <button class="key" data-key="1">1</button>
+      <button class="key" data-key="2">2</button>
+      <button class="key" data-key="3">3</button>
+      <button class="key" data-key="4">4</button>
+      <button class="key" data-key="5">5</button>
+      <button class="key" data-key="6">6</button>
+      <button class="key" data-key="7">7</button>
+      <button class="key" data-key="8">8</button>
+      <button class="key" data-key="9">9</button>
+      <button class="key" data-key="0">0</button>
+      <button class="key wide" data-key="del" aria-label="删除">⌫</button>
+      <button class="key ok" data-key="ok">确定</button>
+    </div>
+
+    <script src="common.js"></script>
+    <script>
+      const FLY_MS = 350;
+      const MISTAKES_KEY = "learningNumber.makeTen.mistakes";
+
+      const range = (min, max) => Array.from({ length: max - min + 1 }, (_, i) => min + i);
+
+      // type：ten = 几和几凑成十，add = 进位加法，sub = 退位减法
+      const tenFact = (n) => ({ type: "ten", a: n, b: 10 - n, answer: 10 - n, key: `${n}+?=10` });
+      const addFact = (a, b) => ({ type: "add", a, b, answer: a + b, key: `${a}+${b}` });
+      const subFact = (m, s) => ({ type: "sub", a: m, b: s, answer: m - s, key: `${m}-${s}` });
+
+      // 20 以内所有进位加法（两个加数都是 2～9，和大于 10）
+      const CARRY_ADDS = [];
+      range(2, 9).forEach((a) => range(2, 9).forEach((b) => a + b > 10 && CARRY_ADDS.push(addFact(a, b))));
+      // 20 以内所有退位减法（十几减一位数，个位不够减）
+      const BORROW_SUBS = [];
+      range(11, 18).forEach((m) => range(m - 9, 9).forEach((s) => BORROW_SUBS.push(subFact(m, s))));
+
+      // guided：是否用十格框一步步引导；facts：本关的题库
+      const LEVELS = [
+        { name: "凑十", guided: true, facts: range(1, 9).map(tenFact) },
+        { name: "9加几", guided: true, facts: CARRY_ADDS.filter((f) => f.a === 9 || f.b === 9) },
+        { name: "8、7、6加几", guided: true, facts: CARRY_ADDS.filter((f) => f.a >= 6 && f.a <= 8) },
+        { name: "5、4、3、2加几", guided: true, facts: CARRY_ADDS.filter((f) => f.a <= 5) },
+        { name: "十几减几", guided: true, facts: BORROW_SUBS },
+        { name: "口算闯关", guided: false, facts: CARRY_ADDS.concat(BORROW_SUBS) },
+      ];
+
+      let problem = null;
+      let input = "";
+      let firstTry = true;
+      let guided = false; // 当前是否显示十格框
+      let ready = false; // 引导步骤做完、键盘可用
+      let moved = 0; // 加法：已经点过、正在飞或已飞进框 A 的点数
+      let arrived = 0; // 加法：已经落进框 A 的点数（连点时最后一个落下才算凑满）
+      let taken = 0; // 减法：已经从框 A 拿走的点数
+      let celebrating = false;
+      let round = 0; // 流程令牌，变化即表示正在进行的动画或庆祝作废
+      let progress = null;
+      let mistakes = {}; // 每道题的答错次数（答对会减回去）
+
+      // ---------- 错题记录 ----------
+      function loadMistakes() {
+        try {
+          mistakes = JSON.parse(localStorage.getItem(MISTAKES_KEY)) || {};
+        } catch (e) {
+          mistakes = {};
+        }
+      }
+
+      function recordAnswer(key, right) {
+        const count = mistakes[key] || 0;
+        const next = right ? Math.max(0, count - 1) : Math.min(5, count + 1);
+        if (next) mistakes[key] = next;
+        else delete mistakes[key];
+        try {
+          localStorage.setItem(MISTAKES_KEY, JSON.stringify(mistakes));
+        } catch (e) {
+          // 无法保存时不影响游戏
+        }
+      }
+
+      // 按错次数加权抽题：错得越多出现得越频繁；不连续出同一题
+      function pickFact() {
+        const facts = progress.level.facts.filter((f) => !problem || f.key !== problem.key);
+        const weights = facts.map((f) => 1 + 3 * (mistakes[f.key] || 0));
+        let r = Math.random() * weights.reduce((sum, w) => sum + w, 0);
+        for (let i = 0; i < facts.length; i++) {
+          r -= weights[i];
+          if (r < 0) return facts[i];
+        }
+        return facts[facts.length - 1];
+      }
+
+      // ---------- 读法 ----------
+      const cn = numberToChinese;
+
+      function taskText(p) {
+        if (p.type === "ten") return `${cn(p.a)}和几凑成十？`;
+        return `${cn(p.a)}${p.type === "add" ? "加" : "减"}${cn(p.b)}等于几？`;
+      }
+
+      function answerText(p) {
+        if (p.type === "ten") return `${cn(p.a)}和${cn(p.b)}凑成十`;
+        return `${cn(p.a)}${p.type === "add" ? "加" : "减"}${cn(p.b)}等于${cn(p.answer)}`;
+      }
+
+      function setPrompt(text) {
+        $("prompt").textContent = text;
+      }
+
+      // 显示并读出提示
+      function say(text, voice) {
+        setPrompt(text);
+        stopSpeaking();
+        speak(voice || text);
+      }
+
+      // ---------- 界面 ----------
+      function renderEquation() {
+        const p = problem;
+        const box = '<span class="answer-box" id="answerBox"></span>';
+        let html;
+        if (p.type === "ten") html = `<span>${p.a}</span>+${box}=<span>10</span>`;
+        else html = `<span>${p.a}</span>${p.type === "add" ? "+" : "−"}<span>${p.b}</span>=${box}`;
+        $("equation").innerHTML = html;
+        renderAnswer();
+      }
+
+      function renderAnswer() {
+        const box = $("answerBox");
+        box.textContent = input || "?";
+        box.classList.toggle("empty", !input);
+      }
+
+      function updateKeypad() {
+        $("keypad").classList.toggle("locked", !ready);
+      }
+
+      function buildFrame(frame, red, blue) {
+        let html = "";
+        for (let i = 0; i < 10; i++) {
+          let dot = "";
+          if (i < red) dot = '<div class="dot red"></div>';
+          else if (i < red + blue) dot = '<div class="dot blue"></div>';
+          html += `<div class="cell">${dot}</div>`;
+        }
+        frame.innerHTML = html;
+        frame.classList.remove("full");
+      }
+
+      // 分解式：top 分成 left 和 right
+      function showSplit(top, left, right) {
+        $("split").innerHTML = `
+          <div>${top}</div>
+          <svg width="64" height="20" viewBox="0 0 64 20"><path d="M32 2 L12 18 M32 2 L52 18" /></svg>
+          <div class="split-branches"><span>${left}</span><span>${right}</span></div>
+        `;
+      }
+
+      function showSteps(lines) {
+        $("steps").innerHTML = lines.map((line) => `<div>${line}</div>`).join("");
+      }
+
+      // 加法里大数放框 A、小数放框 B："看大数，拆小数"
+      function addParts(p) {
+        const big = Math.max(p.a, p.b);
+        const small = Math.min(p.a, p.b);
+        const need = 10 - big;
+        return { big, small, need, rest: small - need };
+      }
+
+      function subParts(p) {
+        const units = p.a - 10;
+        return { units, left: 10 - p.b };
+      }
+
+      // on：展开十格框，按题型摆好点，并给出第一步提示
+      function setGuided(on) {
+        guided = on;
+        moved = 0;
+        arrived = 0;
+        taken = 0;
+        $("playArea").classList.toggle("no-frames", !on);
+        $("split").innerHTML = "";
+        $("steps").innerHTML = "";
+
+        const p = problem;
+        if (!on) {
+          ready = true;
+          setPrompt("");
+        } else if (p.type === "ten") {
+          buildFrame($("frameA"), p.a, 0);
+          $("frameB").hidden = true;
+          ready = true;
+          setPrompt(`${p.a} 和几凑成十？点空格子可以数一数`);
+        } else if (p.type === "add") {
+          const { big, small } = addParts(p);
+          buildFrame($("frameA"), big, 0);
+          buildFrame($("frameB"), 0, small);
+          $("frameB").hidden = false;
+          ready = false;
+          setPrompt("先凑十：点蓝点，把它送到上面的框里");
+        } else {
+          const { units } = subParts(p);
+          buildFrame($("frameA"), 10, 0);
+          buildFrame($("frameB"), 0, units);
+          $("frameB").hidden = false;
+          showSplit(p.a, 10, units);
+          ready = false;
+          setPrompt(`先破十：从上面的 10 个里拿走 ${p.b} 个`);
+        }
+        updateKeypad();
+      }
+
+      function showProblem(fact) {
+        problem = fact;
+        input = "";
+        firstTry = true;
+        renderEquation();
+        setGuided(progress.level.guided);
+      }
+
+      // ---------- 十格框操作 ----------
+      function onFrameTap(cell) {
+        if (celebrating || !guided) return;
+        const frame = cell.parentElement;
+        const dot = cell.querySelector(".dot");
+        if (problem.type === "ten") tapTen(frame, cell, dot);
+        else if (problem.type === "add") tapAdd(frame, dot);
+        else tapSub(frame, dot);
+      }
+
+      // 凑十：点空格补一个蓝点、再点一下拿掉，只是帮助数数
+      function tapTen(frame, cell, dot) {
+        if (frame !== $("frameA") || (dot && dot.classList.contains("red"))) return;
+        playSound("click");
+        if (dot) dot.remove();
+        else cell.innerHTML = '<div class="dot blue pop"></div>';
+      }
+
+      // 进位加：点框 B 的蓝点，送到框 A 的下一个空格
+      async function tapAdd(frame, dot) {
+        const { big, need, rest } = addParts(problem);
+        if (frame !== $("frameB") || !dot) {
+          playSound("bump");
+          setPrompt("点下面的蓝点哦");
+          return;
+        }
+        if (moved >= need) {
+          playSound("bump");
+          return;
+        }
+        moved++;
+        const cell = [...$("frameA").children].find((c) => !c.firstChild);
+        const landing = document.createElement("div");
+        landing.className = "dot blue placeholder";
+        cell.appendChild(landing);
+        playSound("click");
+
+        const id = round;
+        const flight = flyElement(dot, landing, {
+          container: $("playArea"),
+          className: "dot blue",
+          duration: FLY_MS,
+        });
+        dot.remove();
+        await flight;
+        if (id !== round) return;
+        landing.className = "dot blue pop";
+        arrived++;
+
+        if (arrived === need) {
+          $("frameA").classList.add("full");
+          playSound("carry");
+          showSplit(problem.a === big ? problem.b : problem.a, need, rest);
+          showSteps([`${big} + ${need} = 10`, `10 + ${rest} = ?`]);
+          ready = true;
+          updateKeypad();
+          say(`凑成十了！10 加 ${rest} 等于几？`, `凑成十了，十加${cn(rest)}等于几？`);
+        }
+      }
+
+      // 退位减：点框 A 的红点把它拿走
+      async function tapSub(frame, dot) {
+        const { units, left } = subParts(problem);
+        if (frame !== $("frameA") || !dot || dot.classList.contains("taken")) {
+          playSound("bump");
+          if (frame !== $("frameA")) setPrompt(`先从上面的 10 个里拿走 ${problem.b} 个`);
+          return;
+        }
+        if (taken >= problem.b) {
+          playSound("bump");
+          return;
+        }
+        taken++;
+        dot.classList.add("taken");
+        playSound("click");
+
+        if (taken === problem.b) {
+          const id = round;
+          await wait(300);
+          if (id !== round) return;
+          playSound("borrow");
+          showSteps([`10 − ${problem.b} = ${left}`, `${left} + ${units} = ?`]);
+          ready = true;
+          updateKeypad();
+          say(`${left} 和 ${units} 合起来是几？`, `${cn(left)}和${cn(units)}合起来是几？`);
+        }
+      }
+
+      // ---------- 作答 ----------
+      function onKey(key) {
+        if (celebrating || !ready) return;
+        if (key === "ok") {
+          submit();
+          return;
+        }
+        if (key === "del") input = input.slice(0, -1);
+        else if (input.length < 2) input += key;
+        playSound("click");
+        renderAnswer();
+      }
+
+      function submit() {
+        if (!input) return;
+        if (Number(input) === problem.answer) {
+          if (firstTry) recordAnswer(problem.key, true);
+          answerRight();
+          return;
+        }
+
+        if (firstTry) recordAnswer(problem.key, false);
+        firstTry = false;
+        input = "";
+        renderAnswer();
+        playSound("wrong");
+        replayAnimation($("answerBox"), "shake");
+
+        // 口算答错：展开十格框，带着孩子一步步想
+        if (!guided) {
+          setGuided(true);
+          say(`没关系，我们用十格框想一想。${$("prompt").textContent}`);
+          return;
+        }
+        hint();
+      }
+
+      function hint() {
+        const p = problem;
+        if (p.type === "ten") {
+          say("数一数，还有几个空格子？");
+        } else if (p.type === "add") {
+          const { rest } = addParts(p);
+          say(`10 加 ${rest}，是十几呢？`, `十加${cn(rest)}，是十几呢？`);
+        } else {
+          const { units, left } = subParts(p);
+          say(`数一数框里还剩几个点：${left} 加 ${units} 等于几？`, `数一数，${cn(left)}加${cn(units)}等于几？`);
+        }
+      }
+
+      async function answerRight() {
+        const id = ++round;
+        celebrating = true;
+        $("answerBox").classList.add("right");
+        const done = await celebrate(progress, {
+          answerText: answerText(problem),
+          enterLevel,
+          nextTask: () => showProblem(pickFact()),
+          taskText: () => taskText(problem),
+          isCurrent: () => id === round,
+          // 口算关只有一次就答对才得星
+          earn: progress.level.guided || firstTry,
+        });
+        if (done) celebrating = false;
+      }
+
+      // ---------- 关卡 ----------
+      function enterLevel(index) {
+        progress.setCurrent(index);
+        problem = null;
+        showProblem(pickFact());
+      }
+
+      function startLevel(index) {
+        cancelRound();
+        enterLevel(index);
+        speak(progress.intro());
+        speak(taskText(problem));
+      }
+
+      // 中止正在进行的飞行动画或庆祝
+      function cancelRound() {
+        round++;
+        celebrating = false;
+        hideMascot();
+        stopSpeaking();
+        document.querySelectorAll(".flying").forEach((el) => el.remove());
+      }
+
+      function init() {
+        loadMistakes();
+        progress = createLevelProgress({
+          storageKey: "learningNumber.makeTen",
+          levels: LEVELS,
+          onSelect: startLevel,
+        });
+        enterLevel(progress.current);
+        setupStartScreen({
+          emoji: "🔟",
+          title: "一起来学凑十法！",
+          welcome: "一起来学凑十法",
+          onStart: () => {
+            speak(progress.intro());
+            speak(taskText(problem));
+          },
+        });
+
+        $("frames").addEventListener("click", (e) => {
+          const cell = e.target.closest(".cell");
+          if (cell) onFrameTap(cell);
+        });
+
+        $("keypad").addEventListener("click", (e) => {
+          const key = e.target.closest(".key");
+          if (key) onKey(key.dataset.key);
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>

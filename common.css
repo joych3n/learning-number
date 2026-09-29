@@ -1,0 +1,461 @@
+/* 三个游戏共用的样式 */
+
+:root {
+  --main-color: #2563eb;
+  --success-color: #4caf50;
+  --danger-color: #f44336;
+}
+
+* {
+  touch-action: manipulation;
+}
+
+/* 让 hidden 属性总能生效，不被元素自己的 display 覆盖 */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 15px 0;
+  background-color: #f0f9ff;
+  font-family: "Arial Rounded", Arial, sans-serif;
+  box-sizing: border-box;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- 页头：返回链接 + 标题 ---------- */
+.page-header {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  box-sizing: border-box;
+  padding: 0 84px;
+  display: flex;
+  justify-content: center;
+}
+
+.back-link {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background-color: white;
+  color: var(--main-color);
+  font-size: 1rem;
+  text-decoration: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 1.5rem;
+  color: var(--main-color);
+  margin: 8px 0 15px;
+  text-align: center;
+}
+
+/* ---------- 启动层 ---------- */
+.start-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background-color: #f0f9ff;
+}
+
+.start-emoji {
+  font-size: 5rem;
+}
+
+.start-title {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: var(--main-color);
+  text-align: center;
+  padding: 0 16px;
+}
+
+.button.start-button {
+  font-size: 1.8rem;
+  padding: 16px 44px;
+  border-radius: 999px;
+  background-color: var(--main-color);
+  color: white;
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+/* ---------- 按钮 ---------- */
+.button {
+  padding: 8px 6px;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 1px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.action-button {
+  width: 100%;
+  max-width: 120px;
+  background-color: var(--main-color);
+  color: white;
+}
+
+.button-container {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0;
+  justify-content: center;
+  width: 100%;
+  max-width: 300px;
+  padding: 0 10px;
+}
+
+/* 只在有鼠标的设备上启用悬停效果，避免触屏点完后"粘住" */
+@media (hover: hover) {
+  .button:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* ---------- 闯关模式开关 ---------- */
+.game-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  font-size: 1rem;
+  color: #666;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--main-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+/* ---------- 关卡 ---------- */
+.level-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.level-map {
+  display: flex;
+  gap: 6px;
+}
+
+.level-dot {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 2px solid var(--main-color);
+  border-radius: 50%;
+  background-color: white;
+  color: var(--main-color);
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.level-dot.current {
+  background-color: var(--main-color);
+  color: white;
+  transform: scale(1.12);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.level-dot:disabled {
+  border-color: #cbd5e1;
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  cursor: default;
+}
+
+.level-dot.passed::after {
+  content: "⭐";
+  position: absolute;
+  top: -9px;
+  right: -7px;
+  font-size: 0.75rem;
+}
+
+.level-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.star {
+  display: inline-block;
+  font-size: 1.2rem;
+}
+
+.star:not(.on) {
+  filter: grayscale(1);
+  opacity: 0.3;
+}
+
+.star.earned {
+  animation: starPop 0.6s;
+}
+
+@keyframes starPop {
+  0% {
+    transform: scale(0.2);
+  }
+  60% {
+    transform: scale(1.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---------- 任务条 ---------- */
+.game-task {
+  display: inline-flex;
+  align-items: stretch;
+  font-size: 1.2rem;
+  color: var(--main-color);
+  margin-bottom: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 45px;
+  font-weight: bold;
+  background: none;
+}
+
+.game-task-label {
+  background-color: var(--main-color);
+  color: white;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+}
+
+.game-task-value {
+  background-color: #fff;
+  color: var(--main-color);
+  padding: 0 20px;
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3em;
+}
+
+.game-task-value span {
+  display: inline-block;
+}
+
+.game-task-value.animated span {
+  animation: taskNumberPop 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+@keyframes taskNumberPop {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  20% {
+    transform: scale(1.3) rotate(-10deg);
+  }
+  40% {
+    transform: scale(1.3) rotate(10deg);
+  }
+  60% {
+    transform: scale(1.3) rotate(-5deg);
+  }
+  80% {
+    transform: scale(1.3) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.level-panel,
+.game-task {
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.level-panel.hidden,
+.game-task.hidden {
+  opacity: 0;
+  visibility: hidden;
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* ---------- 庆祝遮罩：盖住所在的 position: relative 容器 ---------- */
+.mascot-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 99;
+  display: none;
+  transform: scale(1.05);
+}
+
+.mascot-overlay.active {
+  display: block;
+}
+
+.mascot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 8rem;
+  text-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.mascot-overlay.active .mascot {
+  animation: mascotEncourage 0.6s;
+}
+
+@keyframes mascotEncourage {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(1.4) rotate(-8deg);
+  }
+  60% {
+    transform: translate(-50%, -50%) scale(1.2) rotate(8deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@media (min-width: 480px) {
+  .button-container {
+    max-width: 400px;
+    gap: 15px;
+  }
+  .button {
+    font-size: 1.2rem;
+    padding: 10px 8px;
+  }
+  .level-dot {
+    width: 42px;
+    height: 42px;
+    font-size: 1.1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  body {
+    padding: 20px 0;
+  }
+  .button-container {
+    max-width: 500px;
+    gap: 20px;
+  }
+  .button {
+    font-size: 1.6rem;
+    padding: 12px 10px;
+  }
+}

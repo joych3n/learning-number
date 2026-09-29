@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>认识钟表</title>
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .prompt {
+        min-height: 1.5em;
+        margin: 2px 0 6px;
+        padding: 0 16px;
+        font-size: 1.05rem;
+        color: #b45309;
+        text-align: center;
+      }
+
+      /* 钟面所在区域；庆祝遮罩盖住这里 */
+      .clock-area {
+        position: relative;
+        width: min(80vw, 320px);
+        margin: 4px 0;
+      }
+
+      .clock {
+        display: block;
+        width: 100%;
+        height: auto;
+        touch-action: none; /* 拖动分针时不要滚动页面 */
+        cursor: grab;
+      }
+
+      .clock.locked {
+        cursor: default;
+      }
+
+      .clock .face {
+        fill: white;
+        stroke: var(--main-color);
+        stroke-width: 4;
+      }
+
+      .clock .tick {
+        stroke: #94a3b8;
+        stroke-width: 1;
+      }
+
+      .clock .tick.major {
+        stroke: #334155;
+        stroke-width: 2.5;
+      }
+
+      .clock .num {
+        font-family: Arial, sans-serif;
+        font-size: 15px;
+        font-weight: bold;
+        fill: #1e293b;
+        text-anchor: middle;
+        dominant-baseline: central;
+      }
+
+      .hand {
+        transform-box: view-box;
+        transform-origin: 100px 100px;
+        transition: transform 0.6s ease;
+      }
+
+      .dragging .hand {
+        transition: none;
+      }
+
+      .hour-hand line {
+        stroke: #ef4444;
+        stroke-width: 7;
+        stroke-linecap: round;
+      }
+
+      .minute-hand line {
+        stroke: var(--main-color);
+        stroke-width: 4;
+        stroke-linecap: round;
+      }
+
+      .clock .center {
+        fill: #1e293b;
+      }
+
+      .legend {
+        display: flex;
+        gap: 18px;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        color: #475569;
+      }
+
+      .legend span::before {
+        content: "";
+        display: inline-block;
+        margin-right: 6px;
+        vertical-align: middle;
+        border-radius: 3px;
+      }
+
+      .legend .hour::before {
+        width: 16px;
+        height: 7px;
+        background-color: #ef4444;
+      }
+
+      .legend .minute::before {
+        width: 28px;
+        height: 4px;
+        background-color: var(--main-color);
+      }
+
+      .readout {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--main-color);
+      }
+
+      .readout small {
+        font-size: 1.2rem;
+        color: #475569;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin: 10px 0;
+      }
+
+      .controls .button {
+        min-width: 84px;
+        background-color: white;
+        color: var(--main-color);
+      }
+
+      .controls .button.primary {
+        background-color: var(--main-color);
+        color: white;
+      }
+
+      .options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+        max-width: 360px;
+        margin: 10px 0;
+        padding: 0 16px;
+        box-sizing: border-box;
+      }
+
+      .option {
+        height: 56px;
+        border: 2px solid var(--main-color);
+        border-radius: 12px;
+        background-color: white;
+        color: #1e293b;
+        font-size: 1.4rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .option.right {
+        border-color: var(--success-color);
+        background-color: var(--success-color);
+        color: white;
+      }
+
+      .option.wrong {
+        border-color: #cbd5e1;
+        color: #cbd5e1;
+        animation: shake 0.4s;
+      }
+
+      @keyframes shake {
+        20%,
+        60% {
+          transform: translateX(-6px);
+        }
+        40%,
+        80% {
+          transform: translateX(6px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="page-header">
+      <a class="back-link" href="index.html">← 返回</a>
+      <h1 class="title">认识钟表</h1>
+    </header>
+    <div class="game-switch">
+      <span>闯关模式：</span>
+      <label class="switch">
+        <input type="checkbox" id="gameModeSwitch" aria-label="闯关模式" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="level-panel hidden" id="levelPanel">
+      <div class="level-map" id="levelMap"></div>
+      <div class="level-info">
+        <span id="levelName"></span>
+        <span id="levelStars"></span>
+      </div>
+    </div>
+    <div class="game-task hidden" id="gameTask">
+      <span class="game-task-label" id="taskLabel"></span>
+      <span class="game-task-value" id="taskValue"><span></span></span>
+    </div>
+    <div class="prompt" id="prompt"></div>
+
+    <div class="clock-area" id="clockArea">
+      <!-- 表盘由 buildClock() 生成 -->
+      <svg class="clock" id="clock" viewBox="0 0 200 200" aria-label="钟面"></svg>
+      <div class="mascot-overlay" id="mascotOverlay">
+        <div class="mascot" id="mascot">👏</div>
+      </div>
+    </div>
+    <div class="legend">
+      <span class="hour">短针 · 时针</span>
+      <span class="minute">长针 · 分针</span>
+    </div>
+
+    <div class="readout" id="readout"></div>
+    <div class="controls" id="controls">
+      <button class="button" id="hourDown">−1时</button>
+      <button class="button" id="hourUp">+1时</button>
+      <button class="button primary" id="checkButton">拨好了</button>
+    </div>
+    <div class="options" id="options"></div>
+
+    <script src="common.js"></script>
+    <script>
+      const FREE_SNAP = 5; // 自由模式下分针每次走 5 分钟
+      const FREE_PROMPT = "拖动钟面拨分针，看看时针怎么跟着走";
+
+      // snap：拨钟时分针的最小步长（分钟）；pick：出一个 [时, 分]
+      const LEVELS = [
+        { name: "认识整时", snap: 5, pick: () => [randInt(1, 12), 0] },
+        { name: "认识半时", snap: 5, pick: () => [randInt(1, 12), Math.random() < 0.75 ? 30 : 0] },
+        { name: "几时几分", snap: 5, pick: () => [randInt(1, 12), randInt(1, 11) * 5] },
+        // 专门练最容易读错的时间：分针过了一大半，时针已经快到下一个数
+        { name: "快到整时", snap: 5, pick: () => [randInt(1, 12), randInt(8, 11) * 5] },
+        { name: "精确到分", snap: 1, pick: () => [randInt(1, 12), randInt(1, 59)] },
+      ];
+
+      let minutes = 480; // 从 12:00 起累计的分钟数（不取模，指针转动才不会倒着绕）
+      let dragging = false;
+      let isGameMode = false;
+      let task = null; // { type: "read" | "set", h, m }
+      let options = [];
+      let firstTry = true;
+      let celebrating = false;
+      let round = 0; // 流程令牌，变化即表示正在进行的庆祝作废
+      let progress = null;
+
+      const mod = (n, m) => ((n % m) + m) % m;
+      const hourOf = (total) => Math.floor(mod(total, 720) / 60) || 12;
+      const minuteOf = (total) => mod(total, 60);
+      const nextHour = (h) => (h % 12) + 1;
+      const prevHour = (h) => ((h + 10) % 12) + 1;
+      // 分针指着的数字（0 分指着 12）
+      const minuteNumber = (m) => Math.floor(m / 5) || 12;
+
+      // ---------- 读法和写法 ----------
+      function timeToChinese(h, m) {
+        const hour = h === 2 ? "两" : numberToChinese(h);
+        if (m === 0) return `${hour}点整`;
+        return `${hour}点${m < 10 ? "零" : ""}${numberToChinese(m)}分`;
+      }
+
+      function formatTime(h, m) {
+        return m === 0 ? `${h}时` : `${h}时${m}分`;
+      }
+
+      function formatDigital(h, m) {
+        return `${h}:${String(m).padStart(2, "0")}`;
+      }
+
+      // ---------- 表盘 ----------
+      function buildClock() {
+        const at = (r, deg) => {
+          const a = (deg * Math.PI) / 180;
+          return [(100 + r * Math.sin(a)).toFixed(2), (100 - r * Math.cos(a)).toFixed(2)];
+        };
+        let html = '<circle class="face" cx="100" cy="100" r="94" />';
+        for (let i = 0; i < 60; i++) {
+          const major = i % 5 === 0;
+          const [x1, y1] = at(major ? 80 : 85, i * 6);
+          const [x2, y2] = at(90, i * 6);
+          html += `<line class="tick${major ? " major" : ""}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />`;
+        }
+        for (let n = 1; n <= 12; n++) {
+          const [x, y] = at(68, n * 30);
+          html += `<text class="num" x="${x}" y="${y}">${n}</text>`;
+        }
+        html += '<g class="hand hour-hand" id="hourHand"><line x1="100" y1="108" x2="100" y2="54" /></g>';
+        html += '<g class="hand minute-hand" id="minuteHand"><line x1="100" y1="112" x2="100" y2="22" /></g>';
+        html += '<circle class="center" cx="100" cy="100" r="5" />';
+        $("clock").innerHTML = html;
+      }
+
+      // 时针每分钟转 0.5°，分针每分钟转 6°——两根针永远联动
+      function renderHands() {
+        $("hourHand").style.transform = `rotate(${minutes * 0.5}deg)`;
+        $("minuteHand").style.transform = `rotate(${minutes * 6}deg)`;
+        const h = hourOf(minutes);
+        const m = minuteOf(minutes);
+        $("readout").innerHTML = `${formatDigital(h, m)}<small>${formatTime(h, m)}</small>`;
+      }
+
+      // 顺时针转到某个时间
+      function moveClockTo(h, m) {
+        minutes += mod((h % 12) * 60 + m - mod(minutes, 720), 720);
+        renderHands();
+      }
+
+      const canTurn = () => !celebrating && (!isGameMode || (task && task.type === "set"));
+      const snapSize = () => (isGameMode ? progress.level.snap : FREE_SNAP);
+
+      // 按指针角度转分针；差值取最近的方向，这样顺拨过 12 时针自动进一格，倒拨退一格
+      function dragTo(e) {
+        const rect = $("clock").getBoundingClientRect();
+        const x = e.clientX - (rect.left + rect.width / 2);
+        const y = e.clientY - (rect.top + rect.height / 2);
+        if (Math.hypot(x, y) < rect.width * 0.08) return; // 太靠近圆心，角度不稳定
+        const angle = mod((Math.atan2(x, -y) * 180) / Math.PI, 360);
+        const snap = snapSize();
+        const target = mod(Math.round(angle / 6 / snap) * snap, 60);
+        let delta = target - minuteOf(minutes);
+        if (delta > 30) delta -= 60;
+        if (delta <= -30) delta += 60;
+        if (delta === 0) return;
+        minutes += delta;
+        playSound("tick");
+        renderHands();
+      }
+
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        $("clockArea").classList.remove("dragging");
+        if (!isGameMode) speakSoon(timeToChinese(hourOf(minutes), minuteOf(minutes)));
+      }
+
+      function changeHour(delta) {
+        if (!canTurn()) return;
+        minutes += delta * 60;
+        playSound("click");
+        renderHands();
+        if (!isGameMode) speakSoon(timeToChinese(hourOf(minutes), minuteOf(minutes)));
+      }
+
+      // ---------- 界面状态 ----------
+      function setPrompt(text) {
+        $("prompt").textContent = text;
+      }
+
+      function say(text, voice) {
+        setPrompt(text);
+        stopSpeaking();
+        speak(voice || text);
+      }
+
+      function renderMode() {
+        const reading = isGameMode && task && task.type === "read";
+        $("gameTask").classList.toggle("hidden", !isGameMode);
+        $("levelPanel").classList.toggle("hidden", !isGameMode);
+        $("readout").hidden = isGameMode; // 闯关时不能直接显示答案
+        $("controls").hidden = reading;
+        $("checkButton").hidden = !isGameMode;
+        $("options").hidden = !reading;
+        $("clock").classList.toggle("locked", reading);
+      }
+
+      // ---------- 读钟的选项：干扰项来自孩子真实会犯的错 ----------
+      function buildOptions(h, m) {
+        const list = [{ h, m, kind: "right" }];
+        const add = (hh, mm, kind) => {
+          if (!list.some((o) => o.h === hh && o.m === mm)) list.push({ h: hh, m: mm, kind });
+        };
+        // 时针读错一格：分针过半时时针离下一个数更近，容易多读一小时
+        add(m >= 30 ? nextHour(h) : prevHour(h), m, "hour");
+        if (m % 5 === 0) {
+          // 把分针指着的数字当成分钟：50 分读成 10 分
+          if (m !== 0) add(h, m / 5, "minute");
+          // 两根针看反
+          add(minuteNumber(m), (h * 5) % 60, "swap");
+        } else {
+          // 小格数错
+          add(h, m < 55 ? m + 5 : m - 5, "count");
+        }
+        for (let guard = 0; list.length < 4 && guard < 50; guard++) {
+          const [hh, mm] = progress.level.pick();
+          add(hh, mm, "other");
+        }
+        return shuffle(list.slice(0, 4));
+      }
+
+      function optionHint(o) {
+        const { h, m } = task;
+        switch (o.kind) {
+          case "hour":
+            if (m === 0) return `整时的时候，时针正指着 ${h}`;
+            if (m >= 30) return `时针还没走到 ${nextHour(h)}，所以是 ${h} 时多`;
+            return `时针刚走过 ${h}，所以是 ${h} 时多`;
+          case "minute":
+            return `分针指着 ${m / 5}，表示 ${m} 分，不是 ${m / 5} 分`;
+          case "swap":
+            return "短针是时针，长针是分针，别看反啦";
+          case "count":
+            return `分针过了 ${minuteNumber(m)}，再往后数 ${m % 5} 小格`;
+          default:
+            return "先看短针（时针），再看长针（分针）";
+        }
+      }
+
+      function renderOptions() {
+        $("options").innerHTML = options
+          .map((o, i) => `<button class="option" data-index="${i}">${formatTime(o.h, o.m)}</button>`)
+          .join("");
+      }
+
+      function chooseOption(button) {
+        if (celebrating || button.disabled) return;
+        const o = options[Number(button.dataset.index)];
+        if (o.kind === "right") {
+          button.classList.add("right");
+          success();
+          return;
+        }
+        firstTry = false;
+        button.classList.add("wrong");
+        button.disabled = true;
+        playSound("wrong");
+        say(optionHint(o));
+      }
+
+      // ---------- 拨钟检查 ----------
+      function checkSet() {
+        if (celebrating || !task || task.type !== "set") return;
+        const { h, m } = task;
+        if (hourOf(minutes) === h && minuteOf(minutes) === m) {
+          success();
+          return;
+        }
+        firstTry = false;
+        playSound("wrong");
+        if (minuteOf(minutes) !== m) {
+          if (m % 5 === 0) say(`分针应该指着 ${minuteNumber(m)}`);
+          else say(`分针应该从 ${minuteNumber(m)} 再往后数 ${m % 5} 小格`);
+        } else {
+          const where = m === 0 ? `指着 ${h}` : `在 ${h} 和 ${nextHour(h)} 之间`;
+          say(`分针对了！时针应该${where}，可以按"+1时""−1时"调整`, "分针对了，再调一调时针");
+        }
+      }
+
+      // ---------- 闯关 ----------
+      function taskText() {
+        if (task.type === "read") return "钟面上是几时几分？";
+        return `请把钟拨到${timeToChinese(task.h, task.m)}`;
+      }
+
+      function newTask() {
+        let h, m;
+        do {
+          [h, m] = progress.level.pick();
+        } while (task && h === task.h && m === task.m);
+        task = { type: Math.random() < 0.5 ? "read" : "set", h, m };
+        firstTry = true;
+        setPrompt("");
+
+        const valueEl = $("taskValue");
+        if (task.type === "read") {
+          moveClockTo(h, m);
+          $("taskLabel").textContent = "钟面上是几时几分？";
+          valueEl.hidden = true;
+          options = buildOptions(h, m);
+          renderOptions();
+        } else {
+          // 钟面刚好停在目标时间上就先拨走，不然不用动手就"拨好了"
+          if (hourOf(minutes) === h && minuteOf(minutes) === m) {
+            minutes += 180;
+            renderHands();
+          }
+          $("taskLabel").textContent = "请把钟拨到";
+          valueEl.hidden = false;
+          valueEl.querySelector("span").textContent = formatTime(h, m);
+          replayAnimation(valueEl, "animated");
+        }
+        renderMode();
+      }
+
+      async function success() {
+        const id = ++round;
+        celebrating = true;
+        const done = await celebrate(progress, {
+          answerText: timeToChinese(task.h, task.m),
+          enterLevel,
+          nextTask: newTask,
+          taskText,
+          isCurrent: () => id === round,
+          // 读钟是选择题，只有一次就选对才得星
+          earn: task.type === "set" || firstTry,
+        });
+        if (done) celebrating = false;
+      }
+
+      function enterLevel(index) {
+        progress.setCurrent(index);
+        task = null;
+        newTask();
+      }
+
+      function startLevel(index) {
+        cancelRound();
+        enterLevel(index);
+        speak(progress.intro());
+        speak(taskText());
+      }
+
+      // 中止正在进行的庆祝
+      function cancelRound() {
+        round++;
+        celebrating = false;
+        hideMascot();
+        stopSpeaking();
+      }
+
+      function setGameMode(on) {
+        isGameMode = on;
+        if (on) {
+          startLevel(progress.current);
+        } else {
+          cancelRound();
+          task = null;
+          setPrompt(FREE_PROMPT);
+          renderMode();
+        }
+      }
+
+      function init() {
+        buildClock();
+        renderHands();
+        progress = createLevelProgress({
+          storageKey: "learningNumber.clock",
+          levels: LEVELS,
+          onSelect: startLevel,
+        });
+        setupStartScreen({ emoji: "🕗", title: "一起来认识钟表！", welcome: "一起来认识钟表" });
+        setPrompt(FREE_PROMPT);
+        renderMode();
+
+        const clock = $("clock");
+        clock.addEventListener("pointerdown", (e) => {
+          if (!canTurn()) return;
+          dragging = true;
+          clock.setPointerCapture(e.pointerId);
+          $("clockArea").classList.add("dragging");
+          dragTo(e);
+        });
+        clock.addEventListener("pointermove", (e) => {
+          if (dragging) dragTo(e);
+        });
+        clock.addEventListener("pointerup", endDrag);
+        clock.addEventListener("pointercancel", endDrag);
+
+        $("hourDown").addEventListener("click", () => changeHour(-1));
+        $("hourUp").addEventListener("click", () => changeHour(1));
+        $("checkButton").addEventListener("click", checkSet);
+
+        $("options").addEventListener("click", (e) => {
+          const button = e.target.closest(".option");
+          if (button) chooseOption(button);
+        });
+
+        $("gameModeSwitch").addEventListener("change", (e) => {
+          setGameMode(e.target.checked);
+        });
+
+        // 刷新页面时浏览器可能会恢复开关的状态，以开关为准
+        if ($("gameModeSwitch").checked) setGameMode(true);
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>

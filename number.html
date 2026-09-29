@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>认识数位</title>
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .digits-container {
+        --bead-w: 30px;
+        --bead-h: 8px;
+        display: flex;
+        gap: 1px;
+        margin: 15px 0;
+        padding: 0;
+        box-sizing: border-box;
+        justify-content: space-between;
+        position: relative;
+      }
+
+      .digit-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 0;
+        transition: transform 0.2s, opacity 0.3s;
+        padding: 0 1px;
+      }
+
+      /* 闯关模式下本关用不到的数位 */
+      .digit-group.dim {
+        opacity: 0.3;
+      }
+
+      .number {
+        font-size: 2.8rem;
+        color: var(--main-color);
+        margin: 2px 0;
+        text-align: center;
+        min-width: 35px;
+        transition: all 0.3s;
+      }
+
+      .number.changed {
+        animation: numberChange 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+      }
+
+      @keyframes numberChange {
+        0% {
+          transform: scale(1);
+        }
+        40% {
+          transform: scale(1.4);
+        }
+        60% {
+          transform: scale(0.9);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      /* 数位按钮：整个矩形都可点击，三角形只是画在底层的图形 */
+      .digit-button {
+        position: relative;
+        isolation: isolate;
+        width: 56px;
+        max-width: 100%;
+        height: 48px;
+        padding: 0;
+        border: none;
+        background: none;
+        color: white;
+        font-size: 1.4rem;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+        transition: filter 0.2s, transform 0.1s;
+      }
+
+      .digit-button::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: -1;
+      }
+
+      .digit-button:not(:disabled):active {
+        transform: scale(0.94);
+      }
+
+      .digit-button:disabled {
+        cursor: default;
+        filter: grayscale(1) opacity(0.35);
+      }
+
+      .digit-button.up {
+        align-items: flex-end;
+        padding-bottom: 2px;
+        margin-bottom: 2px;
+      }
+
+      .digit-button.up::before {
+        background-color: var(--success-color);
+        -webkit-clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+        clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+      }
+
+      .digit-button.down {
+        align-items: flex-start;
+        padding-top: 2px;
+        margin-top: 2px;
+      }
+
+      .digit-button.down::before {
+        background-color: var(--danger-color);
+        -webkit-clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+        clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+      }
+
+      @media (hover: hover) {
+        .digit-group:hover {
+          transform: scale(1.05);
+        }
+        .digit-button:not(:disabled):hover {
+          filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.3));
+        }
+      }
+
+      .digit-label {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 2px;
+        padding: 0 3px 1px;
+        border-bottom: 3px solid var(--place-color);
+      }
+
+      /* ---------- 计数器：每个数位一根杆，珠子个数 = 这一位上的数字 ---------- */
+      .rod {
+        position: relative;
+        width: 100%;
+        height: calc(var(--bead-h) * 10 + 26px);
+        margin-top: 10px;
+      }
+
+      /* 竖杆 */
+      .rod::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 6px;
+        left: 50%;
+        width: 4px;
+        margin-left: -2px;
+        background-color: #cbd5e1;
+        border-radius: 2px;
+      }
+
+      /* 底座 */
+      .rod::after {
+        content: "";
+        position: absolute;
+        left: 2px;
+        right: 2px;
+        bottom: 0;
+        height: 6px;
+        background-color: #94a3b8;
+        border-radius: 3px;
+      }
+
+      .rod-beads {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 8px;
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .bead {
+        flex: none;
+        position: relative;
+        width: var(--bead-w);
+        height: var(--bead-h);
+        border-radius: 50%;
+        background-color: var(--place-color);
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.18);
+      }
+
+      .bead.bead-in {
+        animation: beadIn 0.25s ease-out backwards;
+      }
+
+      @keyframes beadIn {
+        from {
+          transform: translateY(-14px);
+          opacity: 0;
+        }
+      }
+
+      .bead.bead-out {
+        animation: beadOut 0.2s ease-in forwards;
+      }
+
+      @keyframes beadOut {
+        to {
+          transform: translateY(-14px) scale(0.6);
+          opacity: 0;
+        }
+      }
+
+      .bead.placeholder {
+        visibility: hidden;
+      }
+
+      /* 满十：10 颗珠子一起闪一下 */
+      .rod-beads.full .bead {
+        animation: beadGlow 0.5s ease-in-out;
+      }
+
+      @keyframes beadGlow {
+        50% {
+          transform: scale(1.15);
+          box-shadow: 0 0 8px 2px rgba(255, 200, 0, 0.9);
+        }
+      }
+
+      /* 10 颗珠子收拢消失，同时一颗珠子飞向左边一位 */
+      .rod-beads.merging .bead {
+        animation: none;
+        transform: translateY(-30px) scale(0.3);
+        opacity: 0;
+        transition: transform 0.35s ease-in, opacity 0.35s ease-in;
+      }
+
+      .flying-bead {
+        box-shadow: 0 0 10px 3px rgba(255, 200, 0, 0.8);
+      }
+
+      .rod-tag {
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        z-index: 60;
+        white-space: nowrap;
+        pointer-events: none;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background-color: #fff7d6;
+        color: #b45309;
+        font-size: 0.85rem;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        animation: tagFloat 1.2s forwards;
+      }
+
+      @keyframes tagFloat {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, 8px);
+        }
+        15%,
+        75% {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -8px);
+        }
+      }
+
+      .total-number {
+        display: inline-flex;
+        align-items: stretch;
+        font-size: 1.4rem;
+        color: var(--main-color);
+        margin: 15px 0;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        height: 45px;
+      }
+
+      .total-label {
+        background-color: var(--main-color);
+        color: white;
+        padding: 0 12px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+      }
+
+      .total-value {
+        background-color: white;
+        padding: 0 15px;
+        min-width: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      @media (min-width: 480px) {
+        .digits-container {
+          --bead-w: 36px;
+          --bead-h: 10px;
+          gap: 2px;
+          padding: 0 5px;
+        }
+        .digit-group {
+          padding: 0 3px;
+        }
+        .number {
+          font-size: 3.5rem;
+        }
+        .digit-button {
+          width: 60px;
+          height: 52px;
+          font-size: 1.6rem;
+        }
+        .digit-label {
+          font-size: 1rem;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .digits-container {
+          --bead-w: 44px;
+          --bead-h: 12px;
+          gap: 3px;
+          padding: 0 10px;
+        }
+        .digit-group {
+          padding: 0 5px;
+        }
+        .number {
+          font-size: 4.5rem;
+        }
+        .digit-button {
+          width: 68px;
+          height: 60px;
+          font-size: 2rem;
+        }
+        .digit-label {
+          font-size: 1.1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="page-header">
+      <a class="back-link" href="index.html">← 返回</a>
+      <h1 class="title">认识数位</h1>
+    </header>
+    <div class="game-switch">
+      <span>闯关模式：</span>
+      <label class="switch">
+        <input type="checkbox" id="gameModeSwitch" aria-label="闯关模式" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="level-panel hidden" id="levelPanel">
+      <div class="level-map" id="levelMap"></div>
+      <div class="level-info">
+        <span id="levelName"></span>
+        <span id="levelStars"></span>
+      </div>
+    </div>
+    <div class="game-task hidden" id="gameTask">
+      <span class="game-task-label">任务：请把数字调到</span>
+      <span class="game-task-value" id="targetNumber"><span></span></span>
+    </div>
+    <div class="total-number">
+      <span class="total-label">当前数字</span>
+      <span class="total-value" id="totalNumber">0</span>
+    </div>
+
+    <!-- 数位由 buildDigits() 按 PLACES 生成 -->
+    <div class="digits-container" id="digitsContainer">
+      <div class="mascot-overlay" id="mascotOverlay">
+        <div class="mascot" id="mascot">👏</div>
+      </div>
+    </div>
+
+    <div class="button-container">
+      <button class="button action-button" id="resetButton">重置归零</button>
+      <button class="button action-button" id="randomButton">随机数字</button>
+    </div>
+    <script src="common.js"></script>
+    <script>
+      const MAX = 99999;
+      // 下标即数位：0 = 个位 … 4 = 万位
+      const PLACES = ["个位", "十位", "百位", "千位", "万位"];
+      const PLACE_COLORS = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6"];
+      const STEP_MS = 500; // 进位/退位动画每一步的停顿
+      const FLY_MS = 450; // 珠子飞到相邻数位的时长
+
+      // 3～4 位数，除最高位外至少有一个 0，如 105、2030、4600
+      function numberWithZero() {
+        for (;;) {
+          const length = Math.random() < 0.5 ? 3 : 4;
+          let s = String(randInt(1, 9));
+          for (let i = 1; i < length; i++) {
+            s += Math.random() < 0.5 ? "0" : String(randInt(1, 9));
+          }
+          if (s.indexOf("0") !== -1) return Number(s);
+        }
+      }
+
+      // shown：亮起的数位个数；enabled：能按的数位；start：开局数字；pick：出题
+      const LEVELS = [
+        { name: "认识个位", shown: 1, enabled: [0], start: 0, pick: () => randInt(0, 9) },
+        // 只能按个位：往上调必须经过"满十进一"，往下调必须经过"退一当十"
+        {
+          name: "满十进一",
+          shown: 2,
+          enabled: [0],
+          start: 6,
+          pick: (current) => (current < 10 ? randInt(10, 13) : randInt(6, 9)),
+        },
+        { name: "认识十位", shown: 2, enabled: [0, 1], start: 0, pick: () => randInt(10, 99) },
+        { name: "认识百位", shown: 3, enabled: [0, 1, 2], start: 0, pick: () => randInt(100, 999) },
+        { name: "认识千位", shown: 4, enabled: [0, 1, 2, 3], start: 0, pick: () => randInt(1000, 9999) },
+        { name: "带0的数", shown: 4, enabled: [0, 1, 2, 3], start: 0, pick: numberWithZero },
+        { name: "认识万位", shown: 5, enabled: [0, 1, 2, 3, 4], start: 0, pick: () => randInt(10000, 99999) },
+      ];
+
+      let total = 0;
+      let targetNumber = null;
+      let isGameMode = false;
+      let celebrating = false; // 庆祝期间不响应按钮
+      let animating = false; // 进位/退位动画期间不响应按钮
+      let round = 0; // 流程令牌，变化即表示正在进行的动画或庆祝作废
+      let progress = null; // 闯关进度，见 createLevelProgress
+
+      const groupEls = [];
+      const digitEls = [];
+      const rodEls = [];
+      const shownDigits = [];
+
+      const isBusy = () => celebrating || animating;
+
+      function digitAt(num, pos) {
+        return Math.floor(num / 10 ** pos) % 10;
+      }
+
+      // ---------- 数字显示 ----------
+      function setDigit(pos, digit) {
+        if (shownDigits[pos] === digit) return;
+        shownDigits[pos] = digit;
+        digitEls[pos].textContent = digit;
+        replayAnimation(digitEls[pos], "changed");
+      }
+
+      function render() {
+        PLACES.forEach((_, pos) => setDigit(pos, digitAt(total, pos)));
+        $("totalNumber").textContent = total;
+      }
+
+      // ---------- 计数器珠子 ----------
+      function beadsOf(pos) {
+        return rodEls[pos].querySelectorAll(".bead:not(.bead-out)");
+      }
+
+      function topBead(pos) {
+        const beads = beadsOf(pos);
+        return beads[beads.length - 1];
+      }
+
+      // placeholder：先占好位置（不可见），用来计算飞行终点
+      function addBead(pos, placeholder) {
+        const bead = document.createElement("div");
+        bead.className = placeholder ? "bead placeholder" : "bead bead-in";
+        rodEls[pos].appendChild(bead);
+        return bead;
+      }
+
+      function removeBead(bead) {
+        bead.classList.add("bead-out");
+        setTimeout(() => bead.remove(), 200);
+      }
+
+      // 让每根杆上的珠子数等于当前数字的对应位
+      function syncBeads() {
+        PLACES.forEach((_, pos) => {
+          const beads = beadsOf(pos);
+          const want = digitAt(total, pos);
+          for (let i = beads.length; i < want; i++) addBead(pos);
+          for (let i = beads.length - 1; i >= want; i--) removeBead(beads[i]);
+        });
+      }
+
+      function showTag(pos, text) {
+        const rod = groupEls[pos].querySelector(".rod");
+        const old = rod.querySelector(".rod-tag");
+        if (old) old.remove();
+        const tag = document.createElement("div");
+        tag.className = "rod-tag";
+        tag.textContent = text;
+        rod.appendChild(tag);
+        setTimeout(() => tag.remove(), 1200);
+      }
+
+      // 一颗珠子飞到相邻数位，途中换成目标数位的颜色
+      function flyBead(fromEl, toEl, fromPos, toPos) {
+        return flyElement(fromEl, toEl, {
+          container: $("digitsContainer"),
+          className: "bead flying-bead",
+          fromColor: PLACE_COLORS[fromPos],
+          toColor: PLACE_COLORS[toPos],
+          duration: FLY_MS,
+        });
+      }
+
+      // 满十进一：本位凑满 10 颗 → 合成 1 颗飞到左边一位；连续进位时逐级重复
+      async function animateCarry(pos, prev, id) {
+        let p = pos;
+        addBead(p);
+        for (;;) {
+          rodEls[p].classList.add("full");
+          showTag(p, "满十");
+          await wait(STEP_MS);
+          if (id !== round) return;
+
+          const beads = beadsOf(p);
+          const landing = addBead(p + 1, true);
+          rodEls[p].classList.add("merging");
+          playSound("carry");
+          await flyBead(beads[beads.length - 1], landing, p, p + 1);
+          if (id !== round) return;
+
+          rodEls[p].classList.remove("full", "merging");
+          beads.forEach((bead) => bead.remove());
+          landing.className = "bead bead-in";
+          setDigit(p, 0);
+
+          const next = digitAt(prev, p + 1) + 1;
+          if (next < 10) {
+            setDigit(p + 1, next);
+            showTag(p + 1, "进一");
+            return;
+          }
+          p++;
+        }
+      }
+
+      // 退一当十：从左边借 1 颗 → 变成本位的 10 颗；连续借位时逐级重复
+      async function animateBorrow(pos, prev, id) {
+        let lender = pos + 1;
+        while (digitAt(prev, lender) === 0) lender++;
+
+        for (let q = lender; q > pos; q--) {
+          const lent = topBead(q);
+          const landing = addBead(q - 1, true);
+          showTag(q, "退一");
+          playSound("borrow");
+          const flight = flyBead(lent, landing, q, q - 1);
+          lent.remove();
+          // 中间的数位先收到 10 颗、再借出 1 颗，所以是 9
+          setDigit(q, q === lender ? digitAt(prev, q) - 1 : 9);
+          await flight;
+          if (id !== round) return;
+
+          landing.remove();
+          for (let i = 0; i < 10; i++) {
+            addBead(q - 1).style.animationDelay = i * 40 + "ms";
+          }
+          showTag(q - 1, "当十");
+          await wait(STEP_MS + 200);
+          if (id !== round) return;
+        }
+
+        removeBead(topBead(pos));
+        setDigit(pos, 9);
+        await wait(250);
+      }
+
+      // ---------- 数字变化 ----------
+      function maxValue() {
+        return isGameMode ? 10 ** progress.level.shown - 1 : MAX;
+      }
+
+      async function changeDigit(pos, delta) {
+        const prev = total;
+        const next = prev + delta * 10 ** pos;
+        if (next < 0 || next > maxValue()) {
+          playSound("bump");
+          return;
+        }
+        playSound("click");
+        total = next;
+
+        const digit = digitAt(prev, pos);
+        const carry = delta > 0 && digit === 9;
+        const borrow = delta < 0 && digit === 0;
+        if (!carry && !borrow) {
+          render();
+          syncBeads();
+          afterChange(false);
+          return;
+        }
+
+        const id = round;
+        animating = true;
+        stopSpeaking();
+        speak(carry ? "满十进一" : "退一当十");
+        if (carry) await animateCarry(pos, prev, id);
+        else await animateBorrow(pos, prev, id);
+        if (id !== round) return;
+
+        animating = false;
+        render();
+        syncBeads();
+        afterChange(true);
+      }
+
+      function setTotal(next) {
+        total = next;
+        render();
+        syncBeads();
+        afterChange(false);
+      }
+
+      // afterPhrase：刚读过"满十进一"等提示，数字排在它后面读，不打断
+      function afterChange(afterPhrase) {
+        if (isGameMode && total === targetNumber) {
+          completeTask(total);
+        } else if (afterPhrase) {
+          speak(numberToChinese(total));
+        } else {
+          speakNumber(total);
+        }
+      }
+
+      function resetAll() {
+        playSound("reset");
+        setTotal(0);
+      }
+
+      function randomNumber() {
+        playSound("random");
+        setTotal(randInt(0, MAX));
+      }
+
+      // ---------- 闯关模式 ----------
+      // 闯关模式下只亮起本关用到的数位，只开放本关能按的按钮
+      function applyColumns() {
+        const level = isGameMode ? progress.level : null;
+        groupEls.forEach((group, pos) => {
+          group.classList.toggle("dim", !!level && pos >= level.shown);
+          const enabled = !level || level.enabled.indexOf(pos) !== -1;
+          group.querySelectorAll(".digit-button").forEach((button) => {
+            button.disabled = !enabled;
+          });
+        });
+      }
+
+      // 按本关规则出题，且不等于 exclude
+      function pickTarget(exclude) {
+        let n;
+        do {
+          n = progress.level.pick(exclude);
+        } while (n === exclude);
+        return n;
+      }
+
+      function showTarget(n) {
+        targetNumber = n;
+        const taskElem = $("targetNumber");
+        taskElem.querySelector("span").textContent = n;
+        replayAnimation(taskElem, "animated");
+      }
+
+      // 切到某一关：数字回到开局值并出第一题（不打断、不播报）
+      function enterLevel(index) {
+        progress.setCurrent(index);
+        applyColumns();
+        total = progress.level.start;
+        render();
+        syncBeads();
+        showTarget(pickTarget(total));
+      }
+
+      function startLevel(index) {
+        cancelRound();
+        enterLevel(index);
+        speak(progress.intro());
+        speak("请把数字调到" + numberToChinese(targetNumber));
+      }
+
+      // 中止正在进行的动画或庆祝，并把画面对齐到当前数字
+      function cancelRound() {
+        round++;
+        celebrating = false;
+        animating = false;
+        hideMascot();
+        stopSpeaking();
+        document.querySelectorAll(".flying, .rod-tag, .bead.placeholder").forEach((el) => el.remove());
+        rodEls.forEach((rod) => rod.classList.remove("full", "merging"));
+        render();
+        syncBeads();
+      }
+
+      function setGameMode(on) {
+        isGameMode = on;
+        $("gameTask").classList.toggle("hidden", !on);
+        $("levelPanel").classList.toggle("hidden", !on);
+        // 闯关模式下隐藏随机按钮，避免"碰"中目标
+        $("randomButton").hidden = on;
+
+        if (on) {
+          startLevel(progress.current);
+        } else {
+          cancelRound();
+          targetNumber = null;
+          $("targetNumber").querySelector("span").textContent = "";
+          applyColumns();
+        }
+      }
+
+      async function completeTask(current) {
+        const id = ++round;
+        celebrating = true;
+        const done = await celebrate(progress, {
+          answerText: numberToChinese(current),
+          enterLevel,
+          nextTask: () => showTarget(pickTarget(current)),
+          taskText: () => numberToChinese(targetNumber),
+          isCurrent: () => id === round,
+        });
+        if (done) celebrating = false;
+      }
+
+      // ---------- 初始化 ----------
+      function buildDigits() {
+        const container = $("digitsContainer");
+        for (let pos = PLACES.length - 1; pos >= 0; pos--) {
+          const place = PLACES[pos];
+          const group = document.createElement("div");
+          group.className = "digit-group";
+          group.style.setProperty("--place-color", PLACE_COLORS[pos]);
+          group.innerHTML = `
+            <div class="digit-label">${place}</div>
+            <button class="digit-button up" data-pos="${pos}" data-delta="1" aria-label="${place}加一">+</button>
+            <div class="number">0</div>
+            <button class="digit-button down" data-pos="${pos}" data-delta="-1" aria-label="${place}减一">−</button>
+            <div class="rod"><div class="rod-beads"></div></div>
+          `;
+          container.appendChild(group);
+          groupEls[pos] = group;
+          digitEls[pos] = group.querySelector(".number");
+          rodEls[pos] = group.querySelector(".rod-beads");
+          shownDigits[pos] = 0;
+        }
+      }
+
+      function init() {
+        buildDigits();
+        progress = createLevelProgress({
+          storageKey: "learningNumber.progress",
+          levels: LEVELS,
+          onSelect: startLevel,
+        });
+        setupStartScreen({ emoji: "🔢", title: "一起来玩数字游戏吧！", welcome: "一起来玩数字游戏吧" });
+
+        $("digitsContainer").addEventListener("click", (e) => {
+          const button = e.target.closest(".digit-button");
+          if (!button || isBusy()) return;
+          changeDigit(Number(button.dataset.pos), Number(button.dataset.delta));
+        });
+
+        $("resetButton").addEventListener("click", () => {
+          if (!isBusy()) resetAll();
+        });
+
+        $("randomButton").addEventListener("click", () => {
+          if (!isBusy()) randomNumber();
+        });
+
+        $("gameModeSwitch").addEventListener("change", (e) => {
+          setGameMode(e.target.checked);
+        });
+
+        // 刷新页面时浏览器可能会恢复开关的状态，以开关为准
+        if ($("gameModeSwitch").checked) setGameMode(true);
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>
